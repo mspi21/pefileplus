@@ -7,6 +7,8 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 dependencies = [
     "pefile>=2024.8.26",
 ]
@@ -30,3 +32,7 @@ follow_untyped_imports = false
 [build-system]
 requires = ["uv_build >= 0.11.6, <0.12.0"]
 build-backend = "uv_build"
+
+[project.urls]
+Homepage = "https://github.com/mspi21/pefileplus"
+Issues = "https://github.com/mspi21/pefileplus/issues"
