@@ -1,0 +1,32 @@
+[project]
+name = "pefileplus"
+version = "2026.4.15"
+description = "A typed, documented wrapper around pefile"
+authors = [
+    { name = "Milan Špinka", email = "pypi.headless370@passmail.net" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pefile>=2024.8.26",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.1",
+    "ruff>=0.15.10",
+]
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "pefile"
+ignore_missing_imports = true
+follow_untyped_imports = false
+
+[build-system]
+requires = ["uv_build >= 0.11.6, <0.12.0"]
+build-backend = "uv_build"
