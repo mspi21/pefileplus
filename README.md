@@ -2,6 +2,18 @@
 
 The reliablity and robustness of `pefile` + proper typing and actually helpful docstrings = `pefileplus`.
 
+## Installation
+
+The package is published on [PyPI](https://pypi.org/project/pefileplus/). This means it can be installed through standard Python package managers, e.g.:
+
+```sh
+pip install pefileplus
+
+poetry add pefileplus
+
+uv add pefileplus
+```
+
 ## Why does this exist?
 
 While `pefile` has a great implementation for PE file parsing that has been tested with various malware samples and other software exploiting edge cases of the PE specification, its usability design is struggling to keep up with a modern Python development ecosystem, where we expect quasi-static typing, proper documentation, information about exceptions, etc., to be provided over a language server and accessible directly in our IDE.
