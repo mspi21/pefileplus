@@ -1,6 +1,6 @@
 # `pefileplus` &mdash; typed wrapper for `pefile`
 
-The reliablity and robustness of `pefile` + proper typing and actually helpful docstrings = `pefileplus`.
+The reliability and robustness of `pefile` + proper typing and actually helpful docstrings = `pefileplus`.
 
 ## Installation
 
