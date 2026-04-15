@@ -809,19 +809,22 @@ class PE:
 
         Sections: list[PESection] = []
         for section in self._pe.sections:
-            Sections.append(PESection(
-                Name                 = section.Name.rstrip(b"\x00").decode(),
-                VirtualSize          = section.Misc_VirtualSize,
-                VirtualAddress       = section.VirtualAddress,
-                SizeOfRawData        = section.SizeOfRawData,
-                PointerToRawData     = section.PointerToRawData,
-                PointerToRelocations = section.PointerToRelocations,
-                PointerToLinenumbers = section.PointerToLinenumbers,
-                NumberOfRelocations  = section.NumberOfRelocations,
-                NumberOfLinenumbers  = section.NumberOfLinenumbers,
-                Characteristics      = PESectionCharacteristics(section.Characteristics),
-                _pefile_structure    = section,
-            ))
+            try:
+                Sections.append(PESection(
+                    Name                 = section.Name.rstrip(b"\x00").decode(),
+                    VirtualSize          = section.Misc_VirtualSize,
+                    VirtualAddress       = section.VirtualAddress,
+                    SizeOfRawData        = section.SizeOfRawData,
+                    PointerToRawData     = section.PointerToRawData,
+                    PointerToRelocations = section.PointerToRelocations,
+                    PointerToLinenumbers = section.PointerToLinenumbers,
+                    NumberOfRelocations  = section.NumberOfRelocations,
+                    NumberOfLinenumbers  = section.NumberOfLinenumbers,
+                    Characteristics      = PESectionCharacteristics(section.Characteristics),
+                    _pefile_structure    = section,
+                ))
+            except UnicodeDecodeError as e:
+                raise PEFormatError(f"Section name is not valid ASCII or UTF-8: {section.Name!r}") from e
 
         self.PeHeaders = PEHeaders(MzHeader, FileHeader, OptionalHeader, Sections)
 

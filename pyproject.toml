@@ -1,6 +1,6 @@
 [project]
 name = "pefileplus"
-version = "2026.4.15"
+version = "2026.4.16"
 description = "A typed, documented wrapper around pefile"
 authors = [
     { name = "Milan Špinka", email = "pypi.headless370@passmail.net" }
