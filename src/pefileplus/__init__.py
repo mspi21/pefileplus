@@ -700,22 +700,6 @@ class PESection:
         return hashlib.md5(self.get_data()).hexdigest()
 
 @dataclasses.dataclass
-class PEHeaders:
-    """ Parsed representation of all PE file headers. """
-
-    MzHeader: DOSStub
-    """ Parsed DOS stub. """
-
-    FileHeader: COFFFileHeader
-    """ Parsed COFF file header. """
-
-    OptionalHeader: COFFOptionalHeader
-    """ Parsed COFF optional header. """
-
-    Sections: list[PESection]
-    """ Parsed section table. """
-
-@dataclasses.dataclass
 class Import:
     """ Parsed PE import entry. """
 
@@ -733,7 +717,95 @@ class Export:
 
     Rva: int
 
+class TLSCharacteristics(enum.IntFlag):
+
+    IMAGE_SCN_ALIGN_1BYTES           = 0x00100000
+    """ Align data on a 1-byte boundary. """
+
+    IMAGE_SCN_ALIGN_2BYTES           = 0x00200000
+    """ Align data on a 2-byte boundary. """
+
+    IMAGE_SCN_ALIGN_4BYTES           = 0x00300000
+    """ Align data on a 4-byte boundary. """
+
+    IMAGE_SCN_ALIGN_8BYTES           = 0x00400000
+    """ Align data on an 8-byte boundary. """
+
+    IMAGE_SCN_ALIGN_16BYTES          = 0x00500000
+    """ Align data on a 16-byte boundary. """
+
+    IMAGE_SCN_ALIGN_32BYTES          = 0x00600000
+    """ Align data on a 32-byte boundary. """
+
+    IMAGE_SCN_ALIGN_64BYTES          = 0x00700000
+    """ Align data on a 64-byte boundary. """
+
+    IMAGE_SCN_ALIGN_128BYTES         = 0x00800000
+    """ Align data on a 128-byte boundary. """
+
+    IMAGE_SCN_ALIGN_256BYTES         = 0x00900000
+    """ Align data on a 256-byte boundary. """
+
+    IMAGE_SCN_ALIGN_512BYTES         = 0x00A00000
+    """ Align data on a 512-byte boundary. """
+
+    IMAGE_SCN_ALIGN_1024BYTES        = 0x00B00000
+    """ Align data on a 1024-byte boundary. """
+
+    IMAGE_SCN_ALIGN_2048BYTES        = 0x00C00000
+    """ Align data on a 2048-byte boundary. """
+
+    IMAGE_SCN_ALIGN_4096BYTES        = 0x00D00000
+    """ Align data on a 4096-byte boundary. """
+
+    IMAGE_SCN_ALIGN_8192BYTES        = 0x00E00000
+    """ Align data on an 8192-byte boundary. """
+
+@dataclasses.dataclass
+class TLSDirectory:
+    """ Parsed TLS (Thread-Local Storage) directory. """
+
+    RawDataStartVA: int
+    """ The starting address of the TLS template. The template is a block of data that is used to initialize TLS data. The system copies all of this data each time a thread is created, so it must not be corrupted. Note that this address is not an RVA; it is an address for which there should be a base relocation in the .reloc section. """
+
+    RawDataEndVA: int
+    """ The address of the last byte of the TLS, except for the zero fill. As with the Raw Data Start VA field, this is a VA, not an RVA. """
+
+    AddressOfIndex: int
+    """ The location to receive the TLS index, which the loader assigns. This location is in an ordinary data section, so it can be given a symbolic name that is accessible to the program. """
+
+    Callbacks: list[int]
+    """ A list of TLS callback function VAs (**not RVAs**). If there are none, this list is empty. """
+
+    SizeOfZeroFill: int
+    """ The size in bytes of the template, beyond the initialized data delimited by the Raw Data Start VA and Raw Data End VA fields. The total template size should be the same as the total size of TLS data in the image file. The zero fill is the amount of data that comes after the initialized nonzero data. """
+
+    Characteristics: TLSCharacteristics
+    """ The four bits [23:20] describe alignment info. Possible values are those defined as IMAGE_SCN_ALIGN_*, which are also used to describe alignment of section in object files. The other 28 bits are reserved for future use. """
+
 class PE:
+
+    MzHeader: DOSStub
+    """ Parsed DOS stub ("MZ" header). """
+
+    FileHeader: COFFFileHeader
+    """ Parsed COFF file header. """
+
+    OptionalHeader: COFFOptionalHeader
+    """ Parsed COFF optional header. """
+
+    Sections: list[PESection]
+    """ Parsed section table. """
+
+    Imports: list[Import]
+    """ List of parsed imported symbols. """
+
+    Exports: list[Export]
+    """ List of parsed exported symbols. """
+
+    TLSData: TLSDirectory | None
+    """ Parsed contents of the TLS directory. """
+
 
     def __init__(
         self,
@@ -762,10 +834,10 @@ class PE:
         self._populate_typed_structures()
 
     def _populate_typed_structures(self) -> None:
-        MzHeader = DOSStub(
+        self.MzHeader = DOSStub(
             e_lfanew = self._pe.DOS_HEADER.e_lfanew,
         )
-        FileHeader = COFFFileHeader(
+        self.FileHeader = COFFFileHeader(
             Machine              = CoffFileMachineType(self._pe.FILE_HEADER.Machine),
             NumberOfSections     = self._pe.FILE_HEADER.NumberOfSections,
             TimeDateStamp        = self._pe.FILE_HEADER.TimeDateStamp,
@@ -774,7 +846,7 @@ class PE:
             SizeOfOptionalHeader = self._pe.FILE_HEADER.SizeOfOptionalHeader,
             Characteristics      = CoffFileCharacteristics(self._pe.FILE_HEADER.Characteristics),
         )
-        OptionalHeader = COFFOptionalHeader(
+        self.OptionalHeader = COFFOptionalHeader(
             Magic                       = self._pe.OPTIONAL_HEADER.Magic,
             MajorLinkerVersion          = self._pe.OPTIONAL_HEADER.MajorLinkerVersion,
             MinorLinkerVersion          = self._pe.OPTIONAL_HEADER.MinorLinkerVersion,
@@ -807,10 +879,10 @@ class PE:
             NumberOfRvaAndSizes         = self._pe.OPTIONAL_HEADER.NumberOfRvaAndSizes,
         )
 
-        Sections: list[PESection] = []
+        self.Sections: list[PESection] = []
         for section in self._pe.sections:
             try:
-                Sections.append(PESection(
+                self.Sections.append(PESection(
                     Name                 = section.Name.rstrip(b"\x00").decode(),
                     VirtualSize          = section.Misc_VirtualSize,
                     VirtualAddress       = section.VirtualAddress,
@@ -824,21 +896,61 @@ class PE:
                     _pefile_structure    = section,
                 ))
             except UnicodeDecodeError as e:
-                raise PEFormatError(f"Section name is not valid ASCII or UTF-8: {section.Name!r}") from e
-
-        self.PeHeaders = PEHeaders(MzHeader, FileHeader, OptionalHeader, Sections)
+                raise PEFormatError(f"Invalid section name: {section.Name!r}") from e
 
         self.Imports: list[Import] = []
         if hasattr(self._pe, "DIRECTORY_ENTRY_IMPORT"):
             for entry in self._pe.DIRECTORY_ENTRY_IMPORT:
+                try:
+                    dll_name = entry.dll.decode()
+                except UnicodeDecodeError as e:
+                    raise PEFormatError(f"Invalid imported DLL name: {entry.dll!r}") from e
+
                 for imp in entry.imports:
-                    name_or_ordinal: str | int = imp.name.decode() if imp.name is not None else imp.ordinal
-                    self.Imports.append(Import(entry.dll.decode(), name_or_ordinal))
+                    try:
+                        name_or_ordinal: str | int = imp.name.decode() if imp.name is not None else imp.ordinal
+                    except UnicodeDecodeError as e:
+                        raise PEFormatError(f"Invalid imported symbol name: {imp.name!r}") from e
+                    self.Imports.append(Import(dll_name, name_or_ordinal))
 
         self.Exports: list[Export] = []
         if hasattr(self._pe, "DIRECTORY_ENTRY_EXPORT"):
             for exp in self._pe.DIRECTORY_ENTRY_EXPORT.symbols:
-                self.Exports.append(Export(exp.ordinal, exp.name.decode(), exp.address))
+                try:
+                    exp_name = exp.name.decode()
+                    self.Exports.append(Export(exp.ordinal, exp_name, exp.address))
+                except UnicodeDecodeError as e:
+                    raise PEFormatError(f"Invalid export symbol name: {exp.name!r}") from e
+
+        self.TLSData = None
+        if hasattr(self._pe, "DIRECTORY_ENTRY_TLS"):
+            AddressOfCallbacks: int = self._pe.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks
+            # AddressOfCallbacks is a *VA*, not a RVA.
+            callbacks = self._parse_tls_callback_array(AddressOfCallbacks - self.OptionalHeader.ImageBase)
+
+            tls = TLSDirectory(
+                RawDataStartVA  = self._pe.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData,
+                RawDataEndVA    = self._pe.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData,
+                AddressOfIndex  = self._pe.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex,
+                Callbacks       = callbacks,
+                SizeOfZeroFill  = self._pe.DIRECTORY_ENTRY_TLS.struct.SizeOfZeroFill,
+                Characteristics = TLSCharacteristics(self._pe.DIRECTORY_ENTRY_TLS.struct.Characteristics),
+            )
+            self.TLSData = tls
+
+    def _parse_tls_callback_array(self, callback_array_rva: int) -> list[int]:
+            callbacks = []
+            ptr_size = 8 if self.is_64bit() else 4
+
+            i = 0
+            while True:
+                cb_address = int.from_bytes(self._pe.get_data(callback_array_rva + i * ptr_size, ptr_size), "little")
+                if cb_address == 0:
+                    break
+                callbacks.append(cb_address)
+                i += 1
+
+            return callbacks
 
     def raw_pefile(self) -> RawPE:
         """ Get the underlying `pefile.PE` object. """
@@ -895,7 +1007,7 @@ class PE:
         """
         Get the section containing the given file offset.
         """
-        for section in self.PeHeaders.Sections:
+        for section in self.Sections:
             if section.contains_offset(offset):
                 return section
         return None
@@ -904,7 +1016,7 @@ class PE:
         """
         Get the section containing the given address.
         """
-        for section in self.PeHeaders.Sections:
+        for section in self.Sections:
             if section.contains_rva(rva):
                 return section
         return None
@@ -913,7 +1025,7 @@ class PE:
         """
         Get the section with the given name (or None).
         """
-        for section in self.PeHeaders.Sections:
+        for section in self.Sections:
             if section.Name == name:
                 return section
         return None
@@ -948,25 +1060,25 @@ class PE:
         """
         Check whether the file is a PE32 (a 32-bit PE).
         """
-        return self.PeHeaders.OptionalHeader.Magic == OptionalHeaderPEMagic.OPTIONAL_HEADER_MAGIC_PE32
+        return self.OptionalHeader.Magic == OptionalHeaderPEMagic.OPTIONAL_HEADER_MAGIC_PE32
 
     def is_64bit(self) -> bool:
         """
         Check whether the file is a PE32+ (a 64-bit PE).
         """
-        return self.PeHeaders.OptionalHeader.Magic == OptionalHeaderPEMagic.OPTIONAL_HEADER_MAGIC_PE64
+        return self.OptionalHeader.Magic == OptionalHeaderPEMagic.OPTIONAL_HEADER_MAGIC_PE64
 
     def is_x86(self) -> bool:
         """
         Check whether the Machine field of the COFF File Header matches the x86 (i386) architecture.
         """
-        return self.PeHeaders.FileHeader.Machine == CoffFileMachineType.IMAGE_FILE_MACHINE_I386
+        return self.FileHeader.Machine == CoffFileMachineType.IMAGE_FILE_MACHINE_I386
 
     def is_x64(self) -> bool:
         """
         Check whether the Machine field of the COFF File Header matches the x64 (amd64) architecture.
         """
-        return self.PeHeaders.FileHeader.Machine == CoffFileMachineType.IMAGE_FILE_MACHINE_AMD64
+        return self.FileHeader.Machine == CoffFileMachineType.IMAGE_FILE_MACHINE_AMD64
 
     def get_overlay_data_start_offset(self) -> int | None:
         """

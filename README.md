@@ -50,17 +50,17 @@ except PEFormatError as e:
     print(f"Not a valid PE file: {e}.")
     raise SystemExit(1)
 
-print(f"Offset of PE header: {pe.PeHeaders.MzHeader.e_lfanew = :#x}")
-print(f"Target architecture: {pe.PeHeaders.FileHeader.Machine.name = } ({pe.PeHeaders.FileHeader.Machine:#x})")
-print(f"Image base address:  {pe.PeHeaders.OptionalHeader.ImageBase = :#x}")
+print(f"Offset of PE header: {pe.MzHeader.e_lfanew = :#x}")
+print(f"Target architecture: {pe.FileHeader.Machine.name = } ({pe.FileHeader.Machine:#x})")
+print(f"Image base address:  {pe.OptionalHeader.ImageBase = :#x}")
 ```
 
 Example output:
 
 ```
-Offset of PE header: pe.PeHeaders.MzHeader.e_lfanew = 0x78
-Target architecture: pe.PeHeaders.FileHeader.Machine.name = 'IMAGE_FILE_MACHINE_AMD64' (0x8664)
-Image base address:  pe.PeHeaders.OptionalHeader.ImageBase = 0x21af1f60000
+Offset of PE header: pe.MzHeader.e_lfanew = 0x78
+Target architecture: pe.FileHeader.Machine.name = 'IMAGE_FILE_MACHINE_AMD64' (0x8664)
+Image base address:  pe.OptionalHeader.ImageBase = 0x21af1f60000
 ```
 
 ### Sections
@@ -74,8 +74,8 @@ except PEFormatError as e:
     print(f"Not a valid PE file: {e}.")
     raise SystemExit(1)
 
-print(f"Number of sections: {len(pe.PeHeaders.Sections) = }")
-print(f"Equivalent to this: {pe.PeHeaders.FileHeader.NumberOfSections = }")
+print(f"Number of sections: {len(pe.Sections) = }")
+print(f"Equivalent to this: {pe.FileHeader.NumberOfSections = }")
 print()
 
 text = pe.get_section_by_name(".text")
@@ -93,8 +93,8 @@ else:
 Example output:
 
 ```
-Number of sections: len(pe.PeHeaders.Sections) = 4
-Equivalent to this: pe.PeHeaders.FileHeader.NumberOfSections = 4
+Number of sections: len(pe.Sections) = 4
+Equivalent to this: pe.FileHeader.NumberOfSections = 4
 
 .text section:
         text.Characteristics.name = IMAGE_SCN_CNT_CODE|IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ (0x60000020)
@@ -135,8 +135,42 @@ Number of exports: len(pe.Exports) = 0
 > [!IMPORTANT]
 > When a `PE` object is instantiated with `fast_load = True`, the `Imports` and `Exports` will always be empty; no exception will be raised when trying to access them.
 
+### Experimental &mdash; Thread-Local Storage (TLS) data
+
+```python
+from pefileplus import PE, PEFormatError
+
+try:
+    pe = PE(path = "example.exe")
+except PEFormatError as e:
+    print(f"Not a valid PE file: {e}.")
+    raise SystemExit(1)
+
+if pe.TLSData is not None and len(pe.TLSData.Callbacks) > 0:
+    print("TLS callback VAs: " + ", ".join(f"{cb:#x}" for cb in pe.TLSData.Callbacks))
+else:
+    print("No TLS callbacks found.")
+```
+
+Example output:
+
+```
+TLS callback VAs: 0x401020
+```
+
+> [!IMPORTANT]
+> When a `PE` object is instantiated with `fast_load = True`, the `TLSData` attribute will always be `None`; no exception will be raised when trying to access it.
+
+## Changelog
+
+`2026.4.18`:
+
+- **Breaking change** &mdash; Made parsed headers direct attributes of the `PE` struct (removed `PeHeaders` indirection).
+- Added experimental support for TLS directory parsing.
+- Ensured all `UnicodeDecodeError`s are caught and wrapped in a `PEFormatError`.
+
 ## Limitations
 
-- Currently as of version `2026.4.15`, data directories (except the import and export directory) are not handled by the wrapper. It is still possible to work with those using the raw `pefile` representation by accessing `PE.raw_pefile()`.
+- Currently as of version `2026.4.18`, data directories (except the import, export and TLS directory) are not parsed by the wrapper. It is still possible to work with those using the raw `pefile` representation by accessing `PE.raw_pefile()`.
 
 - The wrapper is only intended for **reading** PE files, not patching them. Overwriting or modifying the parsed structures will have no effect and typically does not make sense.
