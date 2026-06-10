@@ -163,6 +163,10 @@ TLS callback VAs: 0x401020
 
 ## Changelog
 
+`2026.6.10`:
+
+- Changed the type of `Export.name` to `str | None` &mdash; PEs can export symbols by ordinal only. This fixes an error that would raise `PEFormatError` if such an export was encountered.
+
 `2026.4.18`:
 
 - **Breaking change** &mdash; Made parsed headers direct attributes of the `PE` struct (removed `PeHeaders` indirection).

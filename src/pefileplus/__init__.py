@@ -713,7 +713,7 @@ class Export:
 
     Ordinal: int
 
-    Name: str
+    Name: str | None
 
     Rva: int
 
@@ -917,7 +917,7 @@ class PE:
         if hasattr(self._pe, "DIRECTORY_ENTRY_EXPORT"):
             for exp in self._pe.DIRECTORY_ENTRY_EXPORT.symbols:
                 try:
-                    exp_name = exp.name.decode()
+                    exp_name = exp.name.decode() if exp.name is not None else None
                     self.Exports.append(Export(exp.ordinal, exp_name, exp.address))
                 except UnicodeDecodeError as e:
                     raise PEFormatError(f"Invalid export symbol name: {exp.name!r}") from e
